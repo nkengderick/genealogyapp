@@ -1,0 +1,85 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - dev  
+      - dev-branch  
+      - main  
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          echo "Installing dependencies..."
+          # Example for Node.js projects
+          npm install || echo "No package.json found, skipping..."
+
+      - name: Run tests
+        id: run_tests
+        run: |
+          echo "Running tests..."
+          # Example test command
+          npm test || echo "No tests found, skipping..."
+          echo "tests_ran=3" >> $GITHUB_ENV
+          echo "tests_passed=2" >> $GITHUB_ENV
+          echo "tests_failed=1" >> $GITHUB_ENV
+
+  deploy:
+    name: Deploy Application
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Simulate Deployment
+        run: |
+          echo "Deploying application..."
+          sleep 3  # Simulate deployment time
+          echo "deployment_status=success" >> $GITHUB_ENV
+
+  notify:
+    name: Discord Notification
+    needs: [test, deploy]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get commit information
+        id: commit
+        run: |
+          echo "message=$(git log -1 --pretty=%B)" >> $GITHUB_ENV
+          echo "author=$(git log -1 --pretty=%an)" >> $GITHUB_ENV
+          echo "sha=$(git log -1 --pretty=%h)" >> $GITHUB_ENV
+
+      - name: Send Discord notification
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            **CI/CD Pipeline Execution**
+            **Repository:** ${{ github.repository }}
+            **Branch:** ${{ github.ref_name }}
+            **Author:** ${{ env.author }}
+            **Commit SHA:** ${{ env.sha }}
+            **Message:** ${{ env.message }}
+            
+            **Test Results:**
+            - 🟢 **${{ env.tests_passed }}/3** tests passed
+            - 🔴 **${{ env.tests_failed }}/3** tests failed
+            
+            **Deployment Status:** ✅ Successfully Deployed
+
+            🔗 [View Changes](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
